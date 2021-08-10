@@ -75,7 +75,8 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     wcex.hInstance      = hInstance;
     wcex.hIcon          = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_TICTACTOE));
     wcex.hCursor        = LoadCursor(nullptr, IDC_ARROW);
-    wcex.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);
+    //wcex.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);
+    wcex.hbrBackground  = (HBRUSH)GetStockObject(LTGRAY_BRUSH); //The color of the background
     wcex.lpszMenuName   = MAKEINTRESOURCEW(IDC_TICTACTOE);
     wcex.lpszClassName  = szWindowClass;
     wcex.hIconSm        = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
@@ -121,6 +122,32 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //  WM_DESTROY  - post a quit message and return
 //
 //
+
+//Global variables for our game
+const int CELL_SIZE = 100;
+
+//A helper function to create the rectangle of the game
+BOOL GetGameBoardRect(HWND hwnd, RECT* pRect) {
+    RECT rc;
+    if (GetClientRect(hwnd, &rc)) {
+        int width = rc.right - rc.left;
+        int height = rc.bottom - rc.top;
+
+        pRect->left = (width - CELL_SIZE * 3) / 2; //becuse we need 3 cells in a row
+        pRect->top = (height - CELL_SIZE * 3) / 2;
+
+        pRect->right = pRect->left + CELL_SIZE * 3;
+        pRect->bottom = pRect->top + CELL_SIZE * 3;
+        return TRUE;
+    }
+    SetRectEmpty(pRect);
+    return FALSE;
+}
+//a helper function to create the lines of the game
+void DrawLine(HDC hdc, int x1, int y1, int x2, int y2) {
+    MoveToEx(hdc, x1, y1, NULL);
+    LineTo(hdc, x2, y2);
+}
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
@@ -142,8 +169,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
         }
         break;
+        //Case for restricting minimizing the window to a prefered size
     case WM_GETMINMAXINFO:
     {
+        MINMAXINFO* pMinMax = (MINMAXINFO*)lParam;
+
+        pMinMax->ptMinTrackSize.x = CELL_SIZE * 5;
+        pMinMax->ptMinTrackSize.y = CELL_SIZE * 5;
 
     }
     break;
@@ -152,20 +184,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
             RECT rc;
-            if (GetClientRect(hWnd, &rc)) {
-                int width = rc.right - rc.left;
-                int height = rc.bottom - rc.top;
-                const int CELL_SIZE = 100;
+            if (GetGameBoardRect(hWnd, &rc))
+                FillRect(hdc, &rc, (HBRUSH)GetStockObject(WHITE_BRUSH));
+                //Rectangle(hdc, rc.left, rc.top, rc.right, rc.bottom);
+           
+        
+            for (int i = 0; i < 4; i++) {
+                //Draw vertical lines
+                DrawLine(hdc, rc.left + CELL_SIZE * i , rc.top, rc.left + CELL_SIZE * i, rc.bottom);
+                //Draw horizontal lines
+                DrawLine(hdc, rc.left, rc.top + CELL_SIZE * i, rc.right, rc.top + CELL_SIZE * i);
 
-                int left = (width - CELL_SIZE * 3) / 2; //becuse we need 3 cells in a row
-                int top = (height - CELL_SIZE * 3) / 2;
-
-                int right = left + CELL_SIZE * 3;
-                int bottom = top + CELL_SIZE * 3;
-
-                Rectangle(hdc, left, top, right, bottom);
             }
+            
             EndPaint(hWnd, &ps);
+            
         }
         break;
     case WM_DESTROY:
