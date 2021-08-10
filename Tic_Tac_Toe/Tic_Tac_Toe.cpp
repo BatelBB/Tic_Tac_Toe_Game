@@ -142,6 +142,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
         }
         break;
+    case WM_GETMINMAXINFO:
+    {
+
+    }
+    break;
     case WM_PAINT:
         {
             PAINTSTRUCT ps;
@@ -152,7 +157,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 int height = rc.bottom - rc.top;
                 const int CELL_SIZE = 100;
 
-                int left = (width - CELL_SIZE * 3) / 2; //becuse w need 3 cells in a row
+                int left = (width - CELL_SIZE * 3) / 2; //becuse we need 3 cells in a row
                 int top = (height - CELL_SIZE * 3) / 2;
 
                 int right = left + CELL_SIZE * 3;
