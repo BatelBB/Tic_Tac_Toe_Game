@@ -3,6 +3,7 @@
 
 #include "framework.h"
 #include "Tic_Tac_Toe.h"
+#include <windowsx.h>
 
 #define MAX_LOADSTRING 100
 
@@ -148,6 +149,31 @@ void DrawLine(HDC hdc, int x1, int y1, int x2, int y2) {
     MoveToEx(hdc, x1, y1, NULL);
     LineTo(hdc, x2, y2);
 }
+
+//a helper function to return the cell number of the board
+int GetCellNumberFromPoint(HWND hwnd, int x, int y) {
+
+    POINT pt = { x, y};
+    RECT rc;
+    if (GetGameBoardRect(hwnd, &rc)) {
+        //Gets the cell dimentions.
+        if (PtInRect(&rc, pt))
+        {
+            //User clicked inside the game board
+            //Normalize (0 to 3* CELL_SIZE)
+            x = pt.x - rc.left; //using the left as a reference point
+            y = pt.y - rc.top; //how far is the y from the top edge
+
+            int column = x / CELL_SIZE;
+            int row = y / CELL_SIZE;
+
+            //convert to index (0 to 8)
+            return column + row * 3;
+
+        }
+    }
+    return -1; //Outside of the game board or failure
+}
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
@@ -169,6 +195,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
         }
         break;
+    case WM_LBUTTONDOWN:
+    {
+        int xPos = GET_X_LPARAM(lParam);
+        int yPos = GET_Y_LPARAM(lParam);
+
+        int index = GetCellNumberFromPoint(hWnd, xPos, yPos);
+        HDC hdc = GetDC(hWnd);
+        //A function to write on the screen with every mouse click
+        if (NULL != hdc) {
+            WCHAR temp[100];
+            wsprintf(temp, L"Index = %d", index);
+            TextOut(hdc, xPos, yPos, temp, lstrlen(temp));
+            ReleaseDC(hWnd, hdc);
+
+        }
+
+    }
+    break;
         //Case for restricting minimizing the window to a prefered size
     case WM_GETMINMAXINFO:
     {
