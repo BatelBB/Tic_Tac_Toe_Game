@@ -126,7 +126,11 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 //Global variables for our game
 const int CELL_SIZE = 100;
-
+HBRUSH hbr1, hbr2;
+int playerTurn = 1;
+int gameBoard[9] = { 0,0,0,0,0,0,0,0,0 };
+int winner = 0;
+int wins[3];
 //A helper function to create the rectangle of the game
 BOOL GetGameBoardRect(HWND hwnd, RECT* pRect) {
     RECT rc;
@@ -174,16 +178,92 @@ int GetCellNumberFromPoint(HWND hwnd, int x, int y) {
     }
     return -1; //Outside of the game board or failure
 }
+
+BOOL GetCellRect(HWND hWnd, int index, RECT* pRect) {
+    RECT rcBoard;
+    SetRectEmpty(pRect);
+    if (index < 0 || index>8)
+        return false;
+    if (GetGameBoardRect(hWnd, &rcBoard)) {
+        //Convert index from 0 to 8 in x,y pair
+        int y = index / 3; //Row number
+        int x = index % 3; //Column number
+
+        pRect->left = rcBoard.left + x * CELL_SIZE +1;
+        pRect->top = rcBoard.top + y * CELL_SIZE+1;
+        pRect->right = pRect->left +CELL_SIZE-1;
+        pRect->bottom = pRect->top + CELL_SIZE-1;
+
+        return true;
+
+
+    }
+    return false;
+}
+/*
+Returns:
+0 - No winner
+1 - Player wins
+2 - Player wins
+3 - It's a draw
+
+0,1,2
+3,4,5
+6,7,8
+*/
+int GetWinner(int wins[3]) {
+    int cells[] = { 0,1,2,3,4,5,6,7,8, 0,3,6,1,4,7,2,5,8,0,4,8,2,4,6 };
+    //check for winner
+    for (int i = 0; i < ARRAYSIZE(cells); i += 3) {
+        if (0!=gameBoard[cells[i]] && gameBoard[cells[i]] == gameBoard[cells[i + 1]] && gameBoard[cells[i]] == gameBoard[cells[i + 2]]) {
+            //We have a winner
+            wins[0] = cells[i];
+            wins[1] = cells[i+1];
+            wins[2] = cells[i+2];
+
+            return gameBoard[cells[i]];
+        }
+    }
+
+    //Next, see if we have any cells left empty
+    for (int i = 0; i < ARRAYSIZE(gameBoard); i++) {
+        if (gameBoard[i] == 0)
+            return 0; //continue to play
+    }
+
+    return 3; //it's a draw;
+}
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
+    case WM_CREATE:
+    {
+        hbr1 = CreateSolidBrush(RGB(255, 0, 0));
+        hbr2 = CreateSolidBrush(RGB(0, 0, 255));
+
+    }
     case WM_COMMAND:
         {
             int wmId = LOWORD(wParam);
             // Parse the menu selections:
             switch (wmId)
             {
+            case ID_FILE_NEWGAME:
+            {
+                int ret = MessageBox(hWnd, L"Are you sure you want to start a new game?", L"New game", MB_YESNO | MB_ICONQUESTION);
+                if (IDYES == ret) {
+                    //Reset and start a new game
+                    playerTurn = 1;
+                    winner = 0;
+                    ZeroMemory(gameBoard, sizeof(gameBoard));
+                    //Force a paint message
+                    InvalidateRect(hWnd, NULL, TRUE); //Post WM_PAINT to our windowProc. It gets queued in our msg queue.
+                    UpdateWindow(hWnd); //Forced immediate handling of WM_PAINT
+
+                }
+            }
+            break;
             case IDM_ABOUT:
                 DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
                 break;
@@ -200,13 +280,42 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         int xPos = GET_X_LPARAM(lParam);
         int yPos = GET_Y_LPARAM(lParam);
 
+        //Only handle clicks if it is a player ture (i.e 1 or 2)
+        if (playerTurn == 0)
+            break;
+
         int index = GetCellNumberFromPoint(hWnd, xPos, yPos);
         HDC hdc = GetDC(hWnd);
         //A function to write on the screen with every mouse click
         if (NULL != hdc) {
             WCHAR temp[100];
-            wsprintf(temp, L"Index = %d", index);
-            TextOut(hdc, xPos, yPos, temp, lstrlen(temp));
+            //wsprintf(temp, L"Index = %d", index);
+            //TextOut(hdc, xPos, yPos, temp, lstrlen(temp));
+
+            //Get cell dimension from its index
+            if (index != -1) {
+                RECT rcCell;
+                if (GetCellRect(hWnd, index, &rcCell) && gameBoard[index] == 0) {
+                    gameBoard[index] = playerTurn;
+                    FillRect(hdc, &rcCell, playerTurn == 2 ? hbr2 : hbr1);
+
+                    //Check for a winner
+                    winner = GetWinner(wins);
+                    if (winner == 1 || winner == 2) {
+                        //We have a winner
+                        MessageBox(hWnd, (winner == 1) ? L"Player 1 is the winner!" : L"Player 2 is the winner!", L"You Win!", MB_OK | MB_ICONINFORMATION);
+                        playerTurn = 0;
+                    }
+                    else if (winner == 3) {
+                        //It's a draw
+                        MessageBox(hWnd,L"No one wins this time", L"It's a draw!", MB_OK | MB_ICONINFORMATION);
+                        playerTurn = 0;
+                    }
+                    else if (winner == 0)
+                        playerTurn = playerTurn == 1 ? 2 : 1;
+                }
+
+            }
             ReleaseDC(hWnd, hdc);
 
         }
@@ -228,10 +337,23 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
             RECT rc;
-            if (GetGameBoardRect(hWnd, &rc))
+            if (GetGameBoardRect(hWnd, &rc)) {
+                RECT rcClient;
+                if (GetClientRect(hWnd, &rcClient)) {
+                    const WCHAR szPlayer1[] = L"Player 1";
+                    const WCHAR szPlayer2[] = L"Player 2";
+
+                    SetBkMode(hdc, TRANSPARENT);
+                    //Draw Player 1 and Player 2 text
+                    SetTextColor(hdc, RGB(255, 255, 0));
+                    TextOut(hdc, 16, 16, szPlayer1, ARRAYSIZE(szPlayer1));
+                    SetTextColor(hdc, RGB(0, 0, 255));
+                    TextOut(hdc, rcClient.right - 72, 16, szPlayer2, ARRAYSIZE(szPlayer2));
+
+                }
                 FillRect(hdc, &rc, (HBRUSH)GetStockObject(WHITE_BRUSH));
                 //Rectangle(hdc, rc.left, rc.top, rc.right, rc.bottom);
-           
+            }
         
             for (int i = 0; i < 4; i++) {
                 //Draw vertical lines
@@ -240,12 +362,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 DrawLine(hdc, rc.left, rc.top + CELL_SIZE * i, rc.right, rc.top + CELL_SIZE * i);
 
             }
+            //Draw all occupied cells
+            RECT rcCell;
+            for (int i = 0; i < ARRAYSIZE(gameBoard); i++) {
+                if (GetCellRect(hWnd, i, &rcCell) && gameBoard[i] != 0) {
+                    FillRect(hdc, &rcCell, gameBoard[i] == 2 ? hbr2 : hbr1);
+                }
+
+            }
             
             EndPaint(hWnd, &ps);
             
         }
         break;
     case WM_DESTROY:
+        DeleteObject(hbr1);
+        DeleteObject(hbr2);
         PostQuitMessage(0);
         break;
     default:
