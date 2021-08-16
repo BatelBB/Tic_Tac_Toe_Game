@@ -151,6 +151,11 @@
     <ResourceCompile Include="Tic_Tac_Toe.rc" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="icons\1191134.ico" />
+    <Image Include="icons\astronomy.ico" />
+    <Image Include="icons\astronomy1.ico" />
+    <Image Include="icons\astronomy1.png" />
+    <Image Include="icons\icon2.ico" />
     <Image Include="small.ico" />
     <Image Include="Tic_Tac_Toe.ico" />
   </ItemGroup>

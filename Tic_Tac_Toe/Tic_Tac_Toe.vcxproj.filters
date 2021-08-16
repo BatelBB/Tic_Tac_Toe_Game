@@ -45,5 +45,20 @@
     <Image Include="Tic_Tac_Toe.ico">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="icons\astronomy.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="icons\icon2.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="icons\astronomy1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="icons\astronomy1.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="icons\1191134.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>
